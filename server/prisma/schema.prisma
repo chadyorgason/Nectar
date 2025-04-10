@@ -19,6 +19,7 @@ model User {
   username     String @unique
   password     String
   email        String
+  country      String
   active       Boolean
   created_at   DateTime @default(now())
   updated_at   DateTime @updatedAt

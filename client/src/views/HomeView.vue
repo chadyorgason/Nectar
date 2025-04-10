@@ -2,11 +2,39 @@
   import { ref, onMounted } from 'vue';
   import axios from 'axios';
   import { useRouter } from 'vue-router';
+  import AlertToast from './AlertToast.vue';
+
+  // Using ref for reactivity in Composition API
+  const healthStatus = ref<string | null>(null);
+  const users = ref<any[]>([]);
+  const userById = ref<any>(null);  // Store the user fetched by ID
+  const userId = ref<number | null>(null);  // User ID input for searching
+  const selectedUser = ref<any>(null);  // Store the user selected for update
+  const position = ref<string>('');
+  const organization = ref<string>('');
+  const country = ref<string>('');
+  const usersInOrg = ref<any[]>([]);
+  const usersInCountry = ref<any[]>([]);
+  const countryChecked = ref<boolean>(false);
+  const duplicatesChecked = ref<boolean>(false);
+  const duplicates = ref<any[]>([]);
+  const countries = ref<{ [key: string]: string }>({});
 
   const router = useRouter();
 
+  // Fetch countries from the JSON file
+  const fetchCountries = async () => {
+    try {
+      const response = await axios.get('/countries.json');
+      countries.value = response.data;
+    } catch (error) {
+      console.error('Error fetching countries:', error);
+    }
+  };
+
   // Check the session variable when the page loads
   onMounted(() => {
+    fetchCountries();
     const sessionVar = sessionStorage.getItem('sessionVar');
     if (!sessionVar) {
       // If session variable is not found, navigate to the login page
@@ -18,26 +46,6 @@
     }
   });
 
-  // Using ref for reactivity in Composition API
-  const healthStatus = ref<string | null>(null); 
-  const users = ref<any[]>([]);
-  const userById = ref<any>(null);  // Store the user fetched by ID
-  const userId = ref<number | null>(null);  // User ID input for searching
-  const selectedUser = ref<any>(null);  // Store the user selected for update
-  const position = ref<string>('');
-  const organization = ref<string>('');
-  const usersInOrg = ref<any[]>([]);  // Store users list
-
-  // User input form data for creating new users
-  const newUser = ref({
-    first_name: '',
-    last_name: '',
-    position: '',
-    organization: '',
-    email: '',
-    active: true
-  });
-
   // User input form data for updating a user
   const updateUser = ref({
     first_name: '',
@@ -47,7 +55,7 @@
     active: true
   });
 
-  // Define the method to call the API
+  // Make sure API is working
   const getHealthStatus = async () => {
     try {
       const response = await axios.get('http://localhost:3001/api/health', {
@@ -77,6 +85,24 @@
       console.log('Users fetched:', response.data);
     } catch (error) {
       console.error('Error fetching users:', error);
+    }
+  };
+
+  // Get all duplicate names
+  const getAllDuplicates = async () => {
+    console.log('here')
+    try {
+      const response = await axios.get('http://localhost:3001/api/duplicates', {
+        headers: {
+          'Content-Type': 'application/json',
+          'accept': '*/*',
+        },
+      });
+      duplicates.value = response.data; // Store duplicate data
+      duplicatesChecked.value = true;
+      console.log('Duplicates fetched:', response.data);
+    } catch (error) {
+      console.error('Error fetching duplicates:', error);
     }
   };
 
@@ -124,6 +150,33 @@
     } catch (error) {
       users.value = [];
       console.error('Error fetching users by position and organization:', error);
+    }
+  };
+
+  // Define the method to get users with the specified position and organization
+  const getUsersByCountry = async () => {
+    if (!country.value) {
+      console.error("Country required");
+      return;
+    }
+    try {
+      const response = await axios.get('http://localhost:3001/api/country', {
+        params: {
+          country: country.value,
+        },
+        headers: {
+            'Content-Type': 'application/json',
+            'accept': '*/*'
+        },
+      });
+
+      usersInCountry.value = response.data;
+      countryChecked.value = true;
+      console.log('Users fetched:', response.data);
+      console.log('Response', response);
+    } catch (error) {
+      users.value = [];
+      console.error('Error fetching users by country:', error);
     }
   };
 
@@ -187,108 +240,57 @@
 </script>
 
 <template>
-  <div class="greetings">
-    <h1 class="green">You Did it! Wow!</h1>
-    <h3>
-      You’ve successfully launched the skeleton application
-    </h3>
-  </div>
 
-  <!-- Health Status Section -->
-  <div>
-    <button @click="getHealthStatus">Get Health Status</button>
-    <div v-if="healthStatus">
-      <p>API Health Status: {{ healthStatus }}</p>
-    </div>
-  </div>
+  <!-- <AlertToast /> -->
 
-  <!-- User List Section -->
-  <div>
-    <button @click="getAllUsers">Get All Users</button>
-    <div v-if="users.length > 0">
-      <h3>Users:</h3>
-      <ul>
-        <li v-for="user in users" :key="user.id">
-          {{ user.first_name }} {{ user.last_name }} ({{ user.email }})
-          <button @click="selectUserForUpdate(user)">Update</button>
-          <!-- Delete button -->
-          <button @click.stop="deleteUser(user.id)">Delete</button>
-        </li>
-      </ul>
-    </div>
-    <div v-else>
-      <p>No users found.</p>
-    </div>
-  </div>
-
-  <div>
-    <h3>Get Users by Position and Organization</h3>
-    
-    <!-- Input fields for position and organization -->
-    <input v-model="position" type="text" placeholder="Enter Position" />
-    <input v-model="organization" type="text" placeholder="Enter Organization" />
-    
-    <!-- Button to fetch users -->
-    <button @click="getUsersByPositionAndOrganization">Get Users</button>
-
-    <!-- Displaying the list of users -->
-    <div v-if="usersInOrg.length > 0">
-      <h3>Users:</h3>
-      <ul>
-        <li v-for="user in usersInOrg" :key="user.id">
-          {{ user.first_name }} {{ user.last_name }} ({{ user.email }}) - Position: {{ user.position }} - Organization: {{ user.organization }}
-        </li>
-      </ul>
+  <div class="background-container">
+    <div class="center">
+      <h1 class="green">Home</h1>
+      <h3>
+        Welcome to your weather and management app!
+      </h3>
     </div>
 
-    <!-- Message when no users are found -->
-    <div v-else>
-      <p v-if="users.length === 0 && position && organization">No users found for the given position and organization.</p>
+    <div class="iframe-container">
+      <iframe src="https://lottie.host/embed/82625ec6-bd63-464a-918a-3a5086eec9d0/ltp1mCcyQP.lottie" frameborder="0"></iframe>
     </div>
-  </div>
 
-  <!-- Get User by ID Section -->
-  <div>
-    <h3>Get User by ID</h3>
-    <input v-model="userId" type="number" placeholder="Enter User ID" />
-    <button @click="getUserById">Get User</button>
-    <div v-if="userById">
-      <h3>User Info:</h3>
-      <p><strong>Name:</strong> {{ userById.first_name }} {{ userById.last_name }}</p>
-      <p><strong>Position:</strong> {{ userById.position }}</p>
-      <p><strong>Email:</strong> {{ userById.email }}</p>
-      <p><strong>Status:</strong> {{ userById.active ? 'Active' : 'Inactive' }}</p>
-    </div>
-    <div v-else>
-      <p v-if="userId">User not found or ID not provided.</p>
-    </div>
-  </div>
-
-  <!-- Update User Section -->
-  <div v-if="selectedUser">
-    <h3>Update User</h3>
-    <form @submit.prevent="updateUserDetails">
-      <div>
-        <label for="update_first_name">First Name</label>
-        <input v-model="updateUser.first_name" type="text" id="update_first_name" required />
-      </div>
-      <div>
-        <label for="update_last_name">Last Name</label>
-        <input v-model="updateUser.last_name" type="text" id="update_last_name" required />
-      </div>
-      <div>
-        <label for="update_position">Position</label>
-        <input v-model="updateUser.position" type="text" id="update_position" required />
-      </div>
-      <div>
-        <label for="update_email">Email</label>
-        <input v-model="updateUser.email" type="email" id="update_email" required />
-      </div>
-      <div>
-        <label for="update_active">Active</label>
-        <input v-model="updateUser.active" type="checkbox" id="update_active" />
-      </div>
-      <button type="submit">Update User</button>
-    </form>
   </div>
 </template>
+
+<style scoped>
+  /* Center the container */
+  .background-container {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: center;
+    height: 90vh; /* Full viewport height */
+    background-color: #333; /* Darker gray background */
+    width: calc(100% - 250px);
+    overflow-y: auto;
+    padding-right: 15px;
+    padding-bottom: 40px;
+  }
+  .center {
+    width: 100%;
+    text-align: center;
+  }
+  .iframe-container {
+      width: 50%;          /* Set the width of the container */
+      height: 60vh;        /* Set the height of the container */
+      overflow: hidden;    /* Hide the overflowed content */
+      position: relative;  /* Necessary for positioning */
+      min-width: 433px;
+      max-width: 433px;
+      border-radius: 20px;
+    }
+
+    iframe {
+      width: 260%;         /* Increase the width to crop the right side */
+      height: 134%;        /* Increase the height to crop the bottom side */
+      position: absolute;  /* Ensure iframe fills the container */
+      top: -20%;           /* Move up to crop the top */
+      left: -75.5%;          /* Move left to crop the left */
+    }
+</style>

@@ -3,6 +3,7 @@ import cors from 'cors'
 import { PrismaClient } from '@prisma/client';
 import path from 'path'
 
+// const history = require('connect-history-api-fallback');
 const bcrypt = require('bcrypt');
 const prisma = new PrismaClient();
 const app = express()
@@ -13,6 +14,7 @@ app.use(cors({
   }));
 
 app.use(express.json())
+// app.use(history());
 
 // get all users in db
 app.get('/api/users', async (req, res) => {
@@ -22,8 +24,11 @@ app.get('/api/users', async (req, res) => {
         // Fetch all users from the database using Prisma
         const users = await prisma.user.findMany();
 
-        // Return the users as a JSON response
-        res.status(200).json(users);
+        if (users.length > 0) {
+            res.status(200).json(users);
+        } else {
+            res.status(204).json({ error: 'No users found' });
+        }
     } catch (error) {
         // Handle errors (e.g., if the query fails)
         console.error('Error fetching users:', error);
@@ -44,7 +49,7 @@ app.get('/api/users/:id', async (req, res) => {
         if (user) {
             res.status(200).json(user);
         } else {
-            res.status(404).json({ error: 'User not found' });
+            res.status(204).json({ error: 'User not found' });
         }
     } catch (error) {
         console.error('Error fetching user:', error);
@@ -62,15 +67,15 @@ app.get('/api/org-users', async (req, res) => {
         // Fetch all users with the specific position and organization
         const users = await prisma.user.findMany({
             where: {
-                position: position ? { equals: position } : undefined, // Filter by position if specified
-                organization: organization ? { equals: organization } : undefined, // Filter by organization if specified
+                ...(organization ? { organization: { equals: organization } } : {}),
+                ...(position && position !== 'All' ? { position: { equals: position } } : {}),
             },
         });
 
         if (users.length > 0) {
             res.status(200).json(users);
         } else {
-            res.status(404).json({ error: 'No users found for the given position and organization' });
+            res.status(204).json({ data: 'No users found for the given position and organization' });
         }
     } catch (error) {
         console.error('Error fetching users:', error);
@@ -78,6 +83,69 @@ app.get('/api/org-users', async (req, res) => {
     }
 });
 
+// gets all users with specific country
+app.get('/api/country', async (req, res) => {
+    // Ensure country is string
+    const country = typeof req.query.country === 'string' ? req.query.country : undefined;
+
+    try {
+        // Fetch all users with the specific position, organization, and country
+        const users = await prisma.user.findMany({
+            where: { country: { equals: country } },
+        });
+
+        if (users.length > 0) {
+            res.status(200).json(users);
+        } else {
+            res.status(204).json();
+        }
+    } catch (error) {
+        console.error('Error fetching users:', error);
+        res.status(500).json({ error: 'Failed to fetch users' });
+    }
+});
+
+// Get all duplicate first/last name combinations
+app.get('/api/duplicates', async (req, res) => {
+
+    const count = parseInt(req.query.count as string, 10);
+    // Default to 1 if count is missing or invalid
+    const minCount = isNaN(count) ? 1 : count;
+    console.log(minCount)
+
+    try {
+        // Group by firstName and lastName and count the number of occurrences
+        const duplicates = await prisma.user.groupBy({
+            by: ['first_name', 'last_name'],  // Group by first and last name
+            _count: {
+                id: true  // Count how many users have the same first/last name combination
+            },
+            having: {
+                first_name: {
+                    _count: {
+                        gt: 1
+                    }
+                }
+            }
+        });
+
+        // Filter out entries with _count.id <= minCount
+        const filtered = duplicates.filter(user => user._count.id > minCount);
+
+        if (filtered.length > 0) {
+            res.status(200).json(filtered);
+        } else {
+            res.status(204).json();
+        }
+    } catch (error) {
+        // Handle errors (e.g., if the query fails)
+        console.error('Error fetching duplicates:', error);
+        res.status(500).json({ error: 'Failed to fetch duplicate names' });
+    }
+});
+
+
+// login
 app.post('/api/login', async (req, res) => {
     const { username, password } = req.body;
 
@@ -88,7 +156,7 @@ app.post('/api/login', async (req, res) => {
         });
 
         if (!user) {
-            res.status(404).json({ error: 'User not found' });
+            res.status(404).json({ error: 'Username does not exist.' });
         } else {
             // Compare the plain password with the hashed password stored in the database
             const passwordMatch = await bcrypt.compare(password, user.password);
@@ -110,9 +178,9 @@ app.post('/api/login', async (req, res) => {
 });
 
 
-// put new user in db
+// put new user in db (sign up)
 app.post('/api/users', async (req, res) => {
-    const { first_name, last_name, position, organization, username, password, email, active } = req.body;
+    const { first_name, last_name, position, organization, username, password, email, country, active } = req.body;
 
     try {
         // Generate a salt to use for hashing the password
@@ -128,6 +196,7 @@ app.post('/api/users', async (req, res) => {
                 username,
                 password: hashedPassword,
                 email,
+                country,
                 active,
             },
         });
@@ -143,7 +212,7 @@ app.post('/api/users', async (req, res) => {
 // update user in db
 app.put('/api/users/:id', async (req, res) => {
     const { id } = req.params;
-    const { first_name, email, last_name, active } = req.body;
+    const { first_name, last_name, position, country, email, active } = req.body;
 
     try {
         // Find the user by id and update it
@@ -151,8 +220,10 @@ app.put('/api/users/:id', async (req, res) => {
             where: { id: parseInt(id) },
             data: {
                 first_name,
-                email,
                 last_name,
+                position,
+                country,
+                email,
                 active,
             },
         });
