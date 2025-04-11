@@ -128,4 +128,28 @@
   a {
     text-decoration: none;
   }
+  .slide-toast-enter-active,
+  .slide-toast-leave-active {
+    transition: all 0.4s ease;
+  }
+
+  .slide-toast-enter-from {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+
+  .slide-toast-enter-to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+
+  .slide-toast-leave-from {
+    transform: translateY(0);
+    opacity: 1;
+  }
+
+  .slide-toast-leave-to {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
 </style>

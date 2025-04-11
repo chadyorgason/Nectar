@@ -90,7 +90,9 @@
 
 <template>
 
-  <AlertToast v-if="showAlert" :message="alertMessage" />
+  <transition name="slide-toast">
+    <AlertToast v-if="showAlert" :message="alertMessage" />
+  </transition>
 
   <!-- Create User Section -->
   <div class="signup-container">

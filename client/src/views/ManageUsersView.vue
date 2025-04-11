@@ -23,6 +23,11 @@
   const duplicates = ref<any[]>([]);
   const countries = ref<{ [key: string]: string }>({});
 
+  // State to show/hide alert
+  const showAlert = ref(false);
+  const alertMessage = ref("");
+  const alertType = ref("success");
+
   const router = useRouter();
 
   // Fetch countries from the JSON file
@@ -221,6 +226,18 @@
         },
       });
       console.log('User updated:', response.data);
+
+      // Show alert if there is an error
+      alertMessage.value = response?.data.message;
+      alertType.value = 'success';
+      showAlert.value = true;
+
+      // Optionally, hide the alert after a few seconds
+      setTimeout(() => {
+        showAlert.value = false;
+        alertType.value = 'success';
+      }, 5000);
+      
       // Fetch all users again after the update
       await getAllUsers();
       selectedUser.value = null; // Clear selected user
@@ -240,13 +257,25 @@
   // Method to delete a user
   const deleteUser = async (userId: number) => {
     try {
-      await axios.delete(`http://localhost:3001/api/users/${userId}`, {
+      const response = await axios.delete(`http://localhost:3001/api/users/${userId}`, {
         headers: {
             'Content-Type': 'application/json',
             'accept': '*/*'
         },
       });
       console.log('User deleted');
+      console.log(response);
+
+      // Show alert if there is an error
+      alertMessage.value = response?.data.message;
+      alertType.value = 'success';
+      showAlert.value = true;
+
+      // Optionally, hide the alert after a few seconds
+      setTimeout(() => {
+        showAlert.value = false;
+        alertType.value = 'success';
+      }, 5000);
       // Refresh the list of users after deletion
       await getAllUsers();
     } catch (error) {
@@ -257,7 +286,9 @@
 
 <template>
 
-  <!-- <AlertToast /> -->
+  <transition name="slide-toast">
+    <AlertToast v-if="showAlert" :message="alertMessage" :alertType="alertType" />
+  </transition>
 
   <div class="background-container">
     <div class="center">

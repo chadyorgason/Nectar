@@ -205,7 +205,7 @@ app.post('/api/users', async (req, res) => {
         res.status(201).json(userWithoutPassword);
     } catch (error) {
         console.error('Error creating user:', error);
-        res.status(500).json({ error: 'Failed to create user' });
+        res.status(500).json({ error: 'Failed to create user, username already exists.' });
     }
 });
 
@@ -227,11 +227,12 @@ app.put('/api/users/:id', async (req, res) => {
                 active,
             },
         });
+        console.log(updatedUser)
 
-        res.status(200).json(updatedUser);
+        res.status(200).json({ message: 'User updated successfully.'});
     } catch (error) {
         console.error('Error updating user:', error);
-        res.status(500).json({ error: 'Failed to update user' });
+        res.status(500).json({ message: 'Failed to update user' });
     }
 });
 
@@ -245,10 +246,10 @@ app.delete('/api/users/:id', async (req, res) => {
             where: { id: parseInt(id) },
         });
 
-        res.status(200).json({ message: 'User deleted successfully', user: deletedUser });
+        res.status(200).json({ message: `User deleted successfully: ${deletedUser.first_name} ${deletedUser.last_name}.` });
     } catch (error) {
         console.error('Error deleting user:', error);
-        res.status(500).json({ error: 'Failed to delete user' });
+        res.status(500).json({ message: 'Failed to delete user' });
     }
 });
 
